@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find \"C:\\\\\\\\Users\\\\\\\\larsp\\\\\\\\OneDrive\\\\\\\\Documenten\\\\\\\\Claude\\\\\\\\Projects\\\\\\\\App- Fitness\\\\\\\\trainready - kopie\" -type f)",
+      "Bash(find \"C:\\\\\\\\Users\\\\\\\\larsp\\\\\\\\OneDrive\\\\\\\\Documenten\\\\\\\\Claude\\\\\\\\Projects\\\\\\\\App- Fitness\\\\\\\\trainready - kopie\\\\\\\\src\\\\\\\\app\\\\\\\\\\(app\\)\\\\\\\\profile\" -type f)",
+      "Bash(find \"C:\\\\\\\\Users\\\\\\\\larsp\\\\\\\\OneDrive\\\\\\\\Documenten\\\\\\\\Claude\\\\\\\\Projects\\\\\\\\App- Fitness\\\\\\\\trainready - kopie\\\\\\\\src\\\\\\\\components\" -type f)",
+      "Bash(ls *a)",
+      "Bash(ls -la \"C:\\\\\\\\Users\\\\\\\\larsp\\\\\\\\OneDrive\\\\\\\\Documenten\\\\\\\\Claude\\\\\\\\Projects\\\\\\\\App- Fitness\\\\\\\\trainready - kopie\")",
+      "Bash(ls -1 \"C:\\\\\\\\Users\\\\\\\\larsp\\\\\\\\OneDrive\\\\\\\\Documenten\\\\\\\\Claude\\\\\\\\Projects\\\\\\\\App- Fitness\\\\\\\\trainready - kopie\")",
+      "Bash(find \"C:\\\\\\\\Users\\\\\\\\larsp\\\\\\\\OneDrive\\\\\\\\Documenten\\\\\\\\Claude\\\\\\\\Projects\\\\\\\\App- Fitness\\\\\\\\trainready - kopie\" -maxdepth 1 -type f)",
+      "Bash(find \"C:\\\\\\\\Users\\\\\\\\larsp\\\\\\\\OneDrive\\\\\\\\Documenten\\\\\\\\Claude\\\\\\\\Projects\\\\\\\\App- Fitness\\\\\\\\trainready - kopie\\\\\\\\supabase\" -type f)"
+    ]
+  }
+}
