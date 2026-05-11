@@ -19,6 +19,9 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
     title: "TrainReady",
   },
+  icons: {
+    apple: "/icon.svg",
+  },
 };
 
 export const viewport: Viewport = {

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background -->
+  <rect width="512" height="512" rx="112" fill="#0a0a0f"/>
+  <!-- Dumbbell icon in accent color -->
+  <!-- Left weight plate -->
+  <rect x="60" y="210" width="48" height="92" rx="14" fill="#6366f1"/>
+  <!-- Left bar grip -->
+  <rect x="108" y="236" width="28" height="40" rx="8" fill="#6366f1"/>
+  <!-- Center bar -->
+  <rect x="136" y="246" width="240" height="20" rx="10" fill="#6366f1"/>
+  <!-- Right bar grip -->
+  <rect x="376" y="236" width="28" height="40" rx="8" fill="#6366f1"/>
+  <!-- Right weight plate -->
+  <rect x="404" y="210" width="48" height="92" rx="14" fill="#6366f1"/>
+  <!-- TR text -->
+  <text x="256" y="390" font-family="system-ui, -apple-system, sans-serif" font-size="72" font-weight="800" fill="#6366f1" text-anchor="middle" letter-spacing="-2">TR</text>
+</svg>
