@@ -92,6 +92,11 @@ export function WorkoutLoggerContent({
   const [saveError, setSaveError] = useState('');
   const [showExercisePicker, setShowExercisePicker] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showCustomForm, setShowCustomForm] = useState(false);
+  const [customName, setCustomName] = useState('');
+  const [customMuscles, setCustomMuscles] = useState<string[]>([]);
+  const [savingCustom, setSavingCustom] = useState(false);
+  const [localExercises, setLocalExercises] = useState<ExerciseWithMuscleGroups[]>(exercises);
   const router = useRouter();
   const startTime = useMemo(() => Date.now(), []);
 
@@ -249,16 +254,72 @@ export function WorkoutLoggerContent({
     router.refresh();
   }
 
+  // All unique muscle groups for custom exercise form
+  const allMuscleGroups = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; display_name: string }>();
+    localExercises.forEach((ex) => {
+      ex.muscle_groups.forEach((mg: any) => {
+        if (mg.muscle_group) map.set(mg.muscle_group.id, mg.muscle_group);
+      });
+    });
+    return Array.from(map.values()).sort((a, b) => a.display_name.localeCompare(b.display_name));
+  }, [localExercises]);
+
   // Filter exercises for picker: alleen oefeningen passend bij het workout type
   const relevantMuscles = workoutType ? WORKOUT_TYPE_MUSCLES[workoutType] : [];
-  const filteredExercises = exercises.filter((ex) => {
+  const filteredExercises = localExercises.filter((ex) => {
     const matchesSearch = ex.name.toLowerCase().includes(searchQuery.toLowerCase());
     const notAdded = !entries.some((e) => e.exerciseId === ex.id);
     const matchesMuscle = ex.muscle_groups.some((mg: any) =>
-      relevantMuscles.includes(mg.muscle_group.name)
+      relevantMuscles.includes(mg.muscle_group?.name)
     );
     return matchesSearch && notAdded && matchesMuscle;
   });
+
+  // Save custom exercise to Supabase
+  async function saveCustomExercise() {
+    if (!customName.trim()) return;
+    setSavingCustom(true);
+    const supabase = createClient();
+
+    const { data: newEx, error } = await supabase
+      .from('exercises')
+      .insert({ name: customName.trim(), category: 'isolation', is_custom: true, created_by: userId })
+      .select()
+      .single();
+
+    if (error || !newEx) { setSavingCustom(false); return; }
+
+    // Insert muscle group mappings
+    if (customMuscles.length > 0) {
+      await supabase.from('exercise_muscle_groups').insert(
+        customMuscles.map((mgId) => ({
+          exercise_id: newEx.id,
+          muscle_group_id: mgId,
+          involvement: 'primary',
+          weight: 1.0,
+        }))
+      );
+    }
+
+    // Fetch the full exercise with muscle groups and add locally
+    const { data: fullEx } = await supabase
+      .from('exercises')
+      .select('*, exercise_muscle_groups(*, muscle_group:muscle_groups(*))')
+      .eq('id', newEx.id)
+      .single();
+
+    if (fullEx) {
+      const mapped = { ...fullEx, muscle_groups: fullEx.exercise_muscle_groups ?? [] } as ExerciseWithMuscleGroups;
+      setLocalExercises((prev) => [...prev, mapped]);
+      addExercise(mapped);
+    }
+
+    setCustomName('');
+    setCustomMuscles([]);
+    setShowCustomForm(false);
+    setSavingCustom(false);
+  }
 
   // ============================================================
   // Step: Choose Workout Type
@@ -405,37 +466,89 @@ export function WorkoutLoggerContent({
         {/* Add exercise button / picker */}
         {showExercisePicker ? (
           <div className="mt-3 rounded-xl border border-[--color-border] bg-[--color-surface] p-3">
-            <div className="mb-2 flex items-center gap-2">
-              <Search size={16} className="text-[--color-text-muted]" />
-              <input
-                type="text"
-                placeholder="Zoek oefening..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                autoFocus
-                className="flex-1 bg-transparent text-sm text-[--color-text] placeholder:text-[--color-text-muted] focus:outline-none"
-              />
-              <button onClick={() => { setShowExercisePicker(false); setSearchQuery(''); }}>
-                <X size={16} className="text-[--color-text-muted]" />
-              </button>
-            </div>
-            <div className="max-h-60 overflow-y-auto">
-              {filteredExercises.slice(0, 20).map((ex) => (
+            {showCustomForm ? (
+              /* Custom exercise form */
+              <div>
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-sm font-semibold">Eigen oefening</p>
+                  <button onClick={() => setShowCustomForm(false)} className="text-[--color-text-muted]"><X size={16} /></button>
+                </div>
+                <input
+                  type="text"
+                  value={customName}
+                  onChange={(e) => setCustomName(e.target.value)}
+                  placeholder="Naam oefening..."
+                  autoFocus
+                  className="mb-3 w-full rounded-lg border border-[--color-border] bg-[--color-card] px-3 py-2 text-sm text-[--color-text] placeholder:text-[--color-text-muted] focus:border-[--color-accent] focus:outline-none"
+                />
+                <p className="mb-2 text-xs font-semibold text-[--color-text-muted]">Spiergroepen</p>
+                <div className="mb-3 flex flex-wrap gap-2">
+                  {allMuscleGroups.map((mg) => {
+                    const active = customMuscles.includes(mg.id);
+                    return (
+                      <button
+                        key={mg.id}
+                        onClick={() => setCustomMuscles((prev) =>
+                          active ? prev.filter((id) => id !== mg.id) : [...prev, mg.id]
+                        )}
+                        className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
+                          active ? 'bg-[--color-accent] text-white' : 'bg-[--color-card] text-[--color-text-secondary]'
+                        }`}
+                      >
+                        {mg.display_name}
+                      </button>
+                    );
+                  })}
+                </div>
                 <button
-                  key={ex.id}
-                  onClick={() => addExercise(ex)}
-                  className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-left text-sm hover:bg-[--color-card]"
+                  onClick={saveCustomExercise}
+                  disabled={!customName.trim() || savingCustom}
+                  className="w-full rounded-lg bg-[--color-accent] py-2.5 text-sm font-semibold text-white disabled:opacity-50"
                 >
-                  <span>{ex.name}</span>
-                  <span className="text-xs text-[--color-text-muted]">{ex.category}</span>
+                  {savingCustom ? 'Opslaan...' : 'Toevoegen aan training'}
                 </button>
-              ))}
-              {filteredExercises.length === 0 && (
-                <p className="py-4 text-center text-xs text-[--color-text-muted]">
-                  Geen oefeningen gevonden
-                </p>
-              )}
-            </div>
+              </div>
+            ) : (
+              <>
+                <div className="mb-2 flex items-center gap-2">
+                  <Search size={16} className="text-[--color-text-muted]" />
+                  <input
+                    type="text"
+                    placeholder="Zoek oefening..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    autoFocus
+                    className="flex-1 bg-transparent text-sm text-[--color-text] placeholder:text-[--color-text-muted] focus:outline-none"
+                  />
+                  <button onClick={() => { setShowExercisePicker(false); setSearchQuery(''); }}>
+                    <X size={16} className="text-[--color-text-muted]" />
+                  </button>
+                </div>
+                <div className="max-h-52 overflow-y-auto">
+                  {filteredExercises.slice(0, 20).map((ex) => (
+                    <button
+                      key={ex.id}
+                      onClick={() => addExercise(ex)}
+                      className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-left text-sm hover:bg-[--color-card]"
+                    >
+                      <span>{ex.name}</span>
+                      {ex.is_custom && <span className="text-[10px] text-[--color-accent]">eigen</span>}
+                    </button>
+                  ))}
+                  {filteredExercises.length === 0 && (
+                    <p className="py-3 text-center text-xs text-[--color-text-muted]">
+                      Niet gevonden
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={() => { setCustomName(searchQuery); setShowCustomForm(true); }}
+                  className="mt-2 flex w-full items-center justify-center gap-1.5 border-t border-[--color-border] pt-2 text-xs font-medium text-[--color-accent]"
+                >
+                  <Plus size={13} /> Eigen oefening aanmaken
+                </button>
+              </>
+            )}
           </div>
         ) : (
           <button
