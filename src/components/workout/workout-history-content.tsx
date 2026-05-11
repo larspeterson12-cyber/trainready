@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ChevronDown, ChevronUp, Dumbbell, Clock, Flame, TrendingUp, LayoutList } from 'lucide-react';
+import { ChevronDown, ChevronUp, Dumbbell, Clock, Flame, TrendingUp, LayoutList, Trash2 } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 import { WORKOUT_TYPE_LABELS } from '@/lib/recovery/constants';
 import type { WorkoutType } from '@/types/database';
 
@@ -86,8 +87,19 @@ function groupByMonth(workouts: WorkoutEntry[]) {
   return groups;
 }
 
-export function WorkoutHistoryContent({ workouts }: Props) {
+export function WorkoutHistoryContent({ workouts: initialWorkouts }: Props) {
+  const [workouts, setWorkouts] = useState(initialWorkouts);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  async function deleteWorkout(id: string) {
+    setDeletingId(id);
+    const supabase = createClient();
+    await supabase.from('workouts').delete().eq('id', id);
+    setWorkouts((prev) => prev.filter((w) => w.id !== id));
+    setDeletingId(null);
+    if (expandedId === id) setExpandedId(null);
+  }
 
   if (workouts.length === 0) {
     return (
@@ -254,6 +266,15 @@ export function WorkoutHistoryContent({ workouts }: Props) {
                             {workout.notes}
                           </p>
                         )}
+
+                        <button
+                          onClick={() => deleteWorkout(workout.id)}
+                          disabled={deletingId === workout.id}
+                          className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-[--color-red]/30 py-2.5 text-sm font-medium text-[--color-red] disabled:opacity-50"
+                        >
+                          <Trash2 size={14} />
+                          {deletingId === workout.id ? 'Verwijderen...' : 'Training verwijderen'}
+                        </button>
                       </div>
                     )}
                   </div>
