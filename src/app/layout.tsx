@@ -11,8 +11,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "TrainReady — Train slimmer, niet harder",
-  description: "Slimme trainingsplanner die herstel per spiergroep inschat en dagelijks trainingsadvies geeft.",
+  title: "TrainReady — Train hard, recover smart",
+  description: "Train hard, recover smart. Slimme trainingsplanner die herstel per spiergroep bijhoudt en dagelijks advies geeft.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
