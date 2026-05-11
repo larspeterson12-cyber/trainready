@@ -26,6 +26,5 @@ export default async function WorkoutProgressPage() {
     (s: any) => s.workout_exercise?.workout?.user_id === user!.id
   );
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return <WorkoutProgressContent sets={userSets as any[]} />;
+  return <WorkoutProgressContent sets={userSets} />;
 }

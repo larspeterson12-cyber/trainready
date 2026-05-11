@@ -21,7 +21,8 @@ interface DataPoint {
 }
 
 interface Props {
-  sets: RawSet[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  sets: any[];
 }
 
 // ─── SVG Chart ────────────────────────────────────────────────────────────────
