@@ -1,9 +1,14 @@
 import { createClient } from '@/lib/supabase/server';
 import { WorkoutLoggerContent } from '@/components/workout/workout-logger-content';
 
-export default async function NewWorkoutPage() {
+export default async function NewWorkoutPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ template?: string }>;
+}) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  const { template: templateId } = await searchParams;
 
   // Fetch exercises with muscle group mappings
   const { data: rawExercises } = await supabase
@@ -17,7 +22,6 @@ export default async function NewWorkoutPage() {
     `)
     .order('name');
 
-  // Map exercise_muscle_groups to muscle_groups for component compatibility
   const exercises = (rawExercises ?? []).map((ex: any) => ({
     ...ex,
     muscle_groups: ex.exercise_muscle_groups ?? [],
@@ -36,11 +40,31 @@ export default async function NewWorkoutPage() {
     .order('created_at', { ascending: false })
     .limit(500);
 
+  // Fetch template if provided
+  let template = null;
+  if (templateId) {
+    const { data } = await supabase
+      .from('workout_templates')
+      .select(`
+        *,
+        workout_template_exercises (
+          *,
+          exercise:exercises (id, name),
+          sets:workout_template_sets (*)
+        )
+      `)
+      .eq('id', templateId)
+      .eq('user_id', user!.id)
+      .single();
+    template = data;
+  }
+
   return (
     <WorkoutLoggerContent
       userId={user!.id}
       exercises={exercises}
       recentSets={recentSets ?? []}
+      template={template}
     />
   );
 }

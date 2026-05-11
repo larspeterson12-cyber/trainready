@@ -45,16 +45,46 @@ interface WorkoutLoggerContentProps {
   userId: string;
   exercises: ExerciseWithMuscleGroups[];
   recentSets: any[];
+  template?: any | null;
 }
 
 export function WorkoutLoggerContent({
   userId,
   exercises,
   recentSets,
+  template,
 }: WorkoutLoggerContentProps) {
-  const [step, setStep] = useState<'type' | 'exercises' | 'finish'>('type');
-  const [workoutType, setWorkoutType] = useState<WorkoutType | null>(null);
-  const [entries, setEntries] = useState<ExerciseEntry[]>([]);
+  // Pre-fill from template if provided
+  const initialEntries: ExerciseEntry[] = template
+    ? [...(template.workout_template_exercises ?? [])]
+        .sort((a: any, b: any) => a.order_index - b.order_index)
+        .map((wte: any) => ({
+          exerciseId: wte.exercise.id,
+          exerciseName: wte.exercise.name,
+          sets: [...(wte.sets ?? [])]
+            .sort((a: any, b: any) => a.set_number - b.set_number)
+            .map((s: any) => ({
+              reps: s.default_reps ?? 10,
+              weightKg: s.default_weight_kg ?? 0,
+              completed: false,
+            })),
+          muscleGroups: exercises
+            .find((ex) => ex.id === wte.exercise.id)
+            ?.muscle_groups.map((mg: any) => ({
+              muscleGroupId: mg.muscle_group_id,
+              muscleGroupName: mg.muscle_group?.name ?? '',
+              weight: mg.weight ?? 1,
+            })) ?? [],
+        }))
+    : [];
+
+  const [step, setStep] = useState<'type' | 'exercises' | 'finish'>(
+    template ? 'exercises' : 'type'
+  );
+  const [workoutType, setWorkoutType] = useState<WorkoutType | null>(
+    template ? template.workout_type : null
+  );
+  const [entries, setEntries] = useState<ExerciseEntry[]>(initialEntries);
   const [rpe, setRpe] = useState(7);
   const [durationMinutes, setDurationMinutes] = useState(60);
   const [notes, setNotes] = useState('');

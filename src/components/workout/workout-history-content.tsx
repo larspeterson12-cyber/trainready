@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ChevronDown, ChevronUp, Dumbbell, Clock, Flame, TrendingUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, Dumbbell, Clock, Flame, TrendingUp, LayoutList } from 'lucide-react';
 import { WORKOUT_TYPE_LABELS } from '@/lib/recovery/constants';
 import type { WorkoutType } from '@/types/database';
 
@@ -109,13 +109,22 @@ export function WorkoutHistoryContent({ workouts }: Props) {
     <div className="px-4 pt-5 pb-4">
       <div className="mb-5 flex items-center justify-between">
         <h1 className="text-2xl font-bold">Logboek</h1>
-        <Link
-          href="/workout/progress"
-          className="flex items-center gap-1.5 rounded-xl bg-[--color-surface] border border-[--color-border] px-3 py-2 text-xs font-semibold text-[--color-text-secondary] hover:text-[--color-accent] transition-colors"
-        >
-          <TrendingUp size={13} />
-          Voortgang
-        </Link>
+        <div className="flex gap-2">
+          <Link
+            href="/workout/templates"
+            className="flex items-center gap-1.5 rounded-xl bg-[--color-surface] border border-[--color-border] px-3 py-2 text-xs font-semibold text-[--color-text-secondary] hover:text-[--color-accent] transition-colors"
+          >
+            <LayoutList size={13} />
+            Schema's
+          </Link>
+          <Link
+            href="/workout/progress"
+            className="flex items-center gap-1.5 rounded-xl bg-[--color-surface] border border-[--color-border] px-3 py-2 text-xs font-semibold text-[--color-text-secondary] hover:text-[--color-accent] transition-colors"
+          >
+            <TrendingUp size={13} />
+            Voortgang
+          </Link>
+        </div>
       </div>
 
       <div className="flex flex-col gap-6">
