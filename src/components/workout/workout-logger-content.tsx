@@ -95,14 +95,30 @@ export function WorkoutLoggerContent({
   const router = useRouter();
   const startTime = useMemo(() => Date.now(), []);
 
-  // Get previous performance for an exercise
-  function getPreviousPerformance(exerciseId: string): string | null {
-    const relevantSets = recentSets.filter(
-      (s: any) => s.workout_exercise?.exercise_id === exerciseId
+  // Get previous sets per set-number for an exercise (most recent workout)
+  function getPreviousWorkoutSets(exerciseId: string): Map<number, { weight_kg: number; reps: number }> {
+    const map = new Map<number, { weight_kg: number; reps: number }>();
+    // recentSets is ordered by created_at DESC — find the most recent workout date for this exercise
+    const relevant = recentSets.filter(
+      (s: any) => s.workout_exercise?.exercise_id === exerciseId &&
+                  s.workout_exercise?.workout?.user_id === userId
     );
-    if (relevantSets.length === 0) return null;
-    const first = relevantSets[0];
-    return `${first.weight_kg}kg × ${first.reps}`;
+    if (relevant.length === 0) return map;
+
+    // Find the most recent workout date
+    const mostRecentDate = relevant
+      .map((s: any) => s.workout_exercise?.workout?.date ?? '')
+      .sort()
+      .reverse()[0];
+
+    // Get all sets from that workout
+    relevant
+      .filter((s: any) => s.workout_exercise?.workout?.date === mostRecentDate)
+      .forEach((s: any) => {
+        map.set(s.set_number, { weight_kg: s.weight_kg, reps: s.reps });
+      });
+
+    return map;
   }
 
   function addExercise(exercise: ExerciseWithMuscleGroups) {
@@ -302,7 +318,7 @@ export function WorkoutLoggerContent({
         {/* Exercise entries */}
         <div className="flex flex-col gap-3">
           {entries.map((entry, ei) => {
-            const prev = getPreviousPerformance(entry.exerciseId);
+            const prevSets = getPreviousWorkoutSets(entry.exerciseId);
             return (
               <div
                 key={ei}
@@ -311,9 +327,9 @@ export function WorkoutLoggerContent({
                 <div className="flex items-center justify-between p-3">
                   <div>
                     <div className="text-[15px] font-semibold">{entry.exerciseName}</div>
-                    {prev && (
+                    {prevSets.size > 0 && (
                       <div className="mt-0.5 text-[11px] text-[--color-text-muted]">
-                        Vorige: {prev}
+                        Vorige sessie
                       </div>
                     )}
                   </div>
@@ -334,35 +350,45 @@ export function WorkoutLoggerContent({
                     <span className="w-8" />
                   </div>
 
-                  {entry.sets.map((s, si) => (
-                    <div key={si} className="flex items-center gap-0 border-t border-[--color-border] py-1.5">
-                      <span className="w-10 text-sm text-[--color-text-secondary]">{si + 1}</span>
-                      <input
-                        type="number"
-                        value={s.weightKg || ''}
-                        onChange={(e) => updateSet(ei, si, 'weightKg', Number(e.target.value))}
-                        placeholder="0"
-                        className="mr-2 flex-1 rounded-md bg-[--color-surface] px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-[--color-accent]"
-                      />
-                      <input
-                        type="number"
-                        value={s.reps || ''}
-                        onChange={(e) => updateSet(ei, si, 'reps', Number(e.target.value))}
-                        placeholder="0"
-                        className="mr-2 flex-1 rounded-md bg-[--color-surface] px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-[--color-accent]"
-                      />
-                      <button
-                        onClick={() => updateSet(ei, si, 'completed', !s.completed)}
-                        className={`flex h-7 w-7 items-center justify-center rounded-md ${
-                          s.completed
-                            ? 'bg-green-500/15 text-green-500'
-                            : 'bg-[--color-surface] text-[--color-text-muted]'
-                        }`}
-                      >
-                        <Check size={14} />
-                      </button>
+                  {entry.sets.map((s, si) => {
+                    const prev = prevSets.get(si + 1);
+                    return (
+                    <div key={si} className="border-t border-[--color-border] py-1.5">
+                      <div className="flex items-center gap-0">
+                        <span className="w-10 text-sm text-[--color-text-secondary]">{si + 1}</span>
+                        <input
+                          type="number"
+                          value={s.weightKg || ''}
+                          onChange={(e) => updateSet(ei, si, 'weightKg', Number(e.target.value))}
+                          placeholder={prev ? String(prev.weight_kg) : '0'}
+                          className="mr-2 flex-1 rounded-md bg-[--color-surface] px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-[--color-accent]"
+                        />
+                        <input
+                          type="number"
+                          value={s.reps || ''}
+                          onChange={(e) => updateSet(ei, si, 'reps', Number(e.target.value))}
+                          placeholder={prev ? String(prev.reps) : '0'}
+                          className="mr-2 flex-1 rounded-md bg-[--color-surface] px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-[--color-accent]"
+                        />
+                        <button
+                          onClick={() => updateSet(ei, si, 'completed', !s.completed)}
+                          className={`flex h-7 w-7 items-center justify-center rounded-md ${
+                            s.completed
+                              ? 'bg-green-500/15 text-green-500'
+                              : 'bg-[--color-surface] text-[--color-text-muted]'
+                          }`}
+                        >
+                          <Check size={14} />
+                        </button>
+                      </div>
+                      {prev && (
+                        <div className="mt-0.5 pl-10 text-[10px] text-[--color-text-muted]">
+                          Vorige: {prev.weight_kg > 0 ? `${prev.weight_kg}kg × ` : ''}{prev.reps} reps
+                        </div>
+                      )}
                     </div>
-                  ))}
+                    );
+                  })}
 
                   <button
                     onClick={() => addSet(ei)}
