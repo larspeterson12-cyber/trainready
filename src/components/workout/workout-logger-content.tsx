@@ -3,8 +3,24 @@
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  ArrowLeft, Plus, Check, Minus, Search, X, Loader2, ChevronRight,
+  ArrowLeft, Plus, Check, Minus, Search, X, Loader2, ChevronRight, GripVertical,
 } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { createClient } from '@/lib/supabase/client';
 import { calculateWorkoutFatigue } from '@/lib/recovery/engine';
 import type { WorkoutType, ExerciseWithMuscleGroups } from '@/types/database';
@@ -353,6 +369,23 @@ export function WorkoutLoggerContent({
   }
 
   // ============================================================
+  // Drag & drop sensors
+  // ============================================================
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } })
+  );
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = entries.findIndex((_, i) => String(i) === active.id);
+      const newIndex = entries.findIndex((_, i) => String(i) === over.id);
+      setEntries(arrayMove(entries, oldIndex, newIndex));
+    }
+  }
+
+  // ============================================================
   // Step: Log Exercises
   // ============================================================
   if (step === 'exercises') {
@@ -376,92 +409,28 @@ export function WorkoutLoggerContent({
           </div>
         </div>
 
-        {/* Exercise entries */}
-        <div className="flex flex-col gap-3">
-          {entries.map((entry, ei) => {
-            const prevSets = getPreviousWorkoutSets(entry.exerciseId);
-            return (
-              <div
-                key={ei}
-                className="overflow-hidden rounded-xl border border-[--color-border] bg-[--color-card]"
-              >
-                <div className="flex items-center justify-between p-3">
-                  <div>
-                    <div className="text-[15px] font-semibold">{entry.exerciseName}</div>
-                    {prevSets.size > 0 && (
-                      <div className="mt-0.5 text-[11px] text-[--color-text-muted]">
-                        Vorige sessie
-                      </div>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => removeExercise(ei)}
-                    className="text-[--color-text-muted] hover:text-[--color-red]"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-
-                <div className="px-3 pb-2.5">
-                  {/* Header */}
-                  <div className="mb-1 flex gap-0 text-[10px] font-semibold uppercase text-[--color-text-muted]">
-                    <span className="w-10">Set</span>
-                    <span className="flex-1">KG</span>
-                    <span className="flex-1">Reps</span>
-                    <span className="w-8" />
-                  </div>
-
-                  {entry.sets.map((s, si) => {
-                    const prev = prevSets.get(si + 1);
-                    return (
-                    <div key={si} className="border-t border-[--color-border] py-1.5">
-                      <div className="flex items-center gap-0">
-                        <span className="w-10 text-sm text-[--color-text-secondary]">{si + 1}</span>
-                        <input
-                          type="number"
-                          value={s.weightKg || ''}
-                          onChange={(e) => updateSet(ei, si, 'weightKg', Number(e.target.value))}
-                          placeholder={prev ? String(prev.weight_kg) : '0'}
-                          className="mr-2 flex-1 rounded-md bg-[--color-surface] px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-[--color-accent]"
-                        />
-                        <input
-                          type="number"
-                          value={s.reps || ''}
-                          onChange={(e) => updateSet(ei, si, 'reps', Number(e.target.value))}
-                          placeholder={prev ? String(prev.reps) : '0'}
-                          className="mr-2 flex-1 rounded-md bg-[--color-surface] px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-[--color-accent]"
-                        />
-                        <button
-                          onClick={() => updateSet(ei, si, 'completed', !s.completed)}
-                          className={`flex h-7 w-7 items-center justify-center rounded-md ${
-                            s.completed
-                              ? 'bg-green-500/15 text-green-500'
-                              : 'bg-[--color-surface] text-[--color-text-muted]'
-                          }`}
-                        >
-                          <Check size={14} />
-                        </button>
-                      </div>
-                      {prev && (
-                        <div className="mt-0.5 pl-10 text-[10px] text-[--color-text-muted]">
-                          Vorige: {prev.weight_kg > 0 ? `${prev.weight_kg}kg × ` : ''}{prev.reps} reps
-                        </div>
-                      )}
-                    </div>
-                    );
-                  })}
-
-                  <button
-                    onClick={() => addSet(ei)}
-                    className="mt-1.5 flex w-full items-center justify-center gap-1 rounded-md border border-dashed border-[--color-border] py-2 text-xs text-[--color-text-muted]"
-                  >
-                    <Plus size={12} /> Set toevoegen
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        {/* Exercise entries — sortable */}
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={entries.map((_, i) => String(i))} strategy={verticalListSortingStrategy}>
+            <div className="flex flex-col gap-3">
+              {entries.map((entry, ei) => {
+                const prevSets = getPreviousWorkoutSets(entry.exerciseId);
+                return (
+                  <SortableExerciseCard
+                    key={entry.exerciseId + ei}
+                    id={String(ei)}
+                    entry={entry}
+                    ei={ei}
+                    prevSets={prevSets}
+                    onRemove={removeExercise}
+                    onUpdateSet={updateSet}
+                    onAddSet={addSet}
+                  />
+                );
+              })}
+            </div>
+          </SortableContext>
+        </DndContext>
 
         {/* Add exercise button / picker */}
         {showExercisePicker ? (
@@ -692,6 +661,115 @@ function SummaryStat({ label, value }: { label: string; value: string }) {
     <div>
       <div className="text-[11px] text-[--color-text-secondary]">{label}</div>
       <div className="text-base font-semibold">{value}</div>
+    </div>
+  );
+}
+
+// ─── Sortable Exercise Card ────────────────────────────────────────────────────
+
+function SortableExerciseCard({
+  id, entry, ei, prevSets, onRemove, onUpdateSet, onAddSet,
+}: {
+  id: string;
+  entry: ExerciseEntry;
+  ei: number;
+  prevSets: Map<number, { weight_kg: number; reps: number }>;
+  onRemove: (i: number) => void;
+  onUpdateSet: (ei: number, si: number, field: keyof SetData, value: any) => void;
+  onAddSet: (ei: number) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="overflow-hidden rounded-xl border border-[--color-border] bg-[--color-card]"
+    >
+      <div className="flex items-center gap-2 p-3">
+        {/* Drag handle */}
+        <button
+          {...attributes}
+          {...listeners}
+          className="touch-none text-[--color-text-muted] cursor-grab active:cursor-grabbing"
+        >
+          <GripVertical size={18} />
+        </button>
+
+        <div className="flex-1">
+          <div className="text-[15px] font-semibold">{entry.exerciseName}</div>
+          {prevSets.size > 0 && (
+            <div className="mt-0.5 text-[11px] text-[--color-text-muted]">Vorige sessie</div>
+          )}
+        </div>
+
+        <button
+          onClick={() => onRemove(ei)}
+          className="text-[--color-text-muted] hover:text-[--color-red]"
+        >
+          <X size={16} />
+        </button>
+      </div>
+
+      <div className="px-3 pb-2.5">
+        <div className="mb-1 flex gap-0 text-[10px] font-semibold uppercase text-[--color-text-muted]">
+          <span className="w-10">Set</span>
+          <span className="flex-1">KG</span>
+          <span className="flex-1">Reps</span>
+          <span className="w-8" />
+        </div>
+
+        {entry.sets.map((s, si) => {
+          const prev = prevSets.get(si + 1);
+          return (
+            <div key={si} className="border-t border-[--color-border] py-1.5">
+              <div className="flex items-center gap-0">
+                <span className="w-10 text-sm text-[--color-text-secondary]">{si + 1}</span>
+                <input
+                  type="number"
+                  value={s.weightKg || ''}
+                  onChange={(e) => onUpdateSet(ei, si, 'weightKg', Number(e.target.value))}
+                  placeholder={prev ? String(prev.weight_kg) : '0'}
+                  className="mr-2 flex-1 rounded-md bg-[--color-surface] px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-[--color-accent]"
+                />
+                <input
+                  type="number"
+                  value={s.reps || ''}
+                  onChange={(e) => onUpdateSet(ei, si, 'reps', Number(e.target.value))}
+                  placeholder={prev ? String(prev.reps) : '0'}
+                  className="mr-2 flex-1 rounded-md bg-[--color-surface] px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-[--color-accent]"
+                />
+                <button
+                  onClick={() => onUpdateSet(ei, si, 'completed', !s.completed)}
+                  className={`flex h-7 w-7 items-center justify-center rounded-md ${
+                    s.completed ? 'bg-green-500/15 text-green-500' : 'bg-[--color-surface] text-[--color-text-muted]'
+                  }`}
+                >
+                  <Check size={14} />
+                </button>
+              </div>
+              {prev && (
+                <div className="mt-0.5 pl-10 text-[10px] text-[--color-text-muted]">
+                  Vorige: {prev.weight_kg > 0 ? `${prev.weight_kg}kg × ` : ''}{prev.reps} reps
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        <button
+          onClick={() => onAddSet(ei)}
+          className="mt-1.5 flex w-full items-center justify-center gap-1 rounded-md border border-dashed border-[--color-border] py-2 text-xs text-[--color-text-muted]"
+        >
+          <Plus size={12} /> Set toevoegen
+        </button>
+      </div>
     </div>
   );
 }
